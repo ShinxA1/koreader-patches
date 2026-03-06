@@ -46,7 +46,7 @@ Adds a tab bar at the bottom of the File Manager with configurable tabs:
 
 | Tab | Action | Default |
 |---|---|---|
-| **Books** | Refreshes the file browser | On |
+| **Books** | Opens the file browser Home folder | On |
 | **Manga** | Opens [Rakuyomi](https://github.com/tachibana-shin/rakuyomi) | On |
 | **News** | Opens [QuickRSS](https://github.com/qewer33/QuickRSS) | On |
 | **Continue** | Reopens the last read document | On |

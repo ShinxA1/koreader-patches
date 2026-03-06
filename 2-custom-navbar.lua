@@ -131,11 +131,12 @@ end
 -- === Tab callbacks ===
 
 local function onTabBooks()
-    -- Already in books view, just refresh
     local fm = FileManager.instance
-    if fm then
-        fm:onRefresh()
-    end
+    if not fm then return end
+    local home_dir = G_reader_settings:readSetting("home_dir")
+                     or require("apps/filemanager/filemanagerutil").getDefaultDir()
+    fm.file_chooser.path_items[home_dir] = nil
+    fm.file_chooser:changeToPath(home_dir)
 end
 
 local function onTabManga()
@@ -398,7 +399,7 @@ local navbar_h_padding = Screen:scaleBySize(10)
 local function getVisibleTabs()
     local visible = {}
     for _, id in ipairs(config.tab_order) do
-        if config.show_tabs[id] and tabs_by_id[id] then
+        if (id == "books" or config.show_tabs[id]) and tabs_by_id[id] then
             table.insert(visible, tabs_by_id[id])
         end
     end
@@ -627,14 +628,6 @@ function FileManagerMenu:setUpdateItemTable()
                                     G_reader_settings:saveSetting("bottom_navbar", config)
                                 end,
                             })
-                        end,
-                    },
-                    {
-                        text = _("Books"),
-                        checked_func = function() return config.show_tabs.books end,
-                        callback = function()
-                            config.show_tabs.books = not config.show_tabs.books
-                            G_reader_settings:saveSetting("bottom_navbar", config)
                         end,
                     },
                     {
