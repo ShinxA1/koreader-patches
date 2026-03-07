@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# Define target path
+# Define target paths
 TARGET_DIR="$HOME/.config/koreader/patches"
+ICONS_TARGET="$HOME/.config/koreader/icons"
 
-# Ensure the patches directory exists
+# Ensure the directories exist
 mkdir -p "$TARGET_DIR"
+mkdir -p "$ICONS_TARGET"
 
-# Enable nullglob so the array is empty if no .lua files exist
+# Enable nullglob so the array is empty if no matching files exist
 shopt -s nullglob
 LUA_FILES=(*.lua)
 
@@ -25,6 +27,15 @@ echo "✅ Successfully pushed ${#LUA_FILES[@]} .lua file(s) to local KOReader pa
 for file in "${LUA_FILES[@]}"; do
     echo "  - $file"
 done
+
+# Copy icons if the icons directory exists
+if [ -d "icons" ]; then
+    SVG_FILES=(icons/*.svg)
+    if [ ${#SVG_FILES[@]} -gt 0 ]; then
+        cp "${SVG_FILES[@]}" "$ICONS_TARGET/"
+        echo "✅ Copied ${#SVG_FILES[@]} icon(s) to KOReader icons!"
+    fi
+fi
 
 pkill -f koreader
 koreader

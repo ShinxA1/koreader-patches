@@ -105,7 +105,7 @@ local tabs = {
     {
         id = "books",
         label = getBooksLabel(),
-        icon = "book.opened",
+        icon = "tab_books",
     },
     {
         id = "manga",
@@ -130,7 +130,7 @@ local tabs = {
     {
         id = "favorites",
         label = _("Favorites"),
-        icon = "star.full",
+        icon = "tab_favorites",
     },
     {
         id = "collections",
@@ -140,7 +140,7 @@ local tabs = {
     {
         id = "exit",
         label = _("Exit"),
-        icon = "close",
+        icon = "tab_exit",
     },
 }
 
