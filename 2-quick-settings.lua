@@ -1,6 +1,11 @@
 -- Quick Settings tab for KOReader top menu
 -- Adds a new tab at the far left with Wi-Fi, action buttons, and frontlight/warmth sliders.
 -- Works in both File Manager and Book Reader views.
+-- Additional buttons for the Quick Settings tab.
+-- Adds optional buttons for OPDS Catalog, NotionSync, and Reading Streak.
+-- OPDS Catalog is included with KOReader and allows browsing OPDS book catalogs.
+-- NotionSync plugin by Cezary Pukownik: https://github.com/CezaryPukownik/notionsync.koplugin
+-- Reading Streak plugin by advokatb: https://github.com/advokatb/readingstreak.koplugin
 
 local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
@@ -30,7 +35,7 @@ local Screen = Device.screen
 -- ============================================================
 
 local config_default = {
-    button_order = { "wifi", "night", "rotate", "usb", "search", "quickrss", "cloud", "zlibrary", "calibre", "restart", "exit", "sleep" },
+    button_order = { "wifi", "night", "rotate", "usb", "search", "quickrss", "cloud", "zlibrary", "calibre", "notion", "streak", "opds", "restart", "exit", "sleep" },
     show_buttons = {
         wifi = true,
         night = true,
@@ -44,6 +49,10 @@ local config_default = {
         restart = true,
         exit = true,
         sleep = true,
+        -- External plugin buttons (disabled by default; enable if plugin is installed)
+        notion = false,
+        streak = false,
+        opds = false,			 
     },
     show_frontlight = true,
     show_warmth = true,
@@ -253,6 +262,32 @@ local button_defs = {
             end)
         end,
     },
+	notion = {
+        icon = "quick_notion",
+        label = "NotionSync",
+        callback = function()
+            local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
+            local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
+            local ui = (ok_r and ReaderUI.instance) or (ok_f and FileManager.instance)
+            if ui and ui.NotionSync then
+                ui.NotionSync:onSyncAllBooksRequested()
+            end
+        end,
+    },
+    streak = {
+        icon = "quick_streak",
+        label = "Streak",
+        callback = function()
+            UIManager:broadcastEvent(Event:new("ShowReadingStreakCalendar"))
+        end,
+    },
+    opds = {
+        icon = "quick_opds",
+        label = "OPDS",
+        callback = function()
+            UIManager:broadcastEvent(Event:new("ShowOPDSCatalog"))
+        end,
+    },		  
 }
 
 -- Display names for the settings menu
@@ -269,6 +304,9 @@ local button_display_names = {
     cloud = _("Cloud storage"),
     zlibrary = _("Z-Library"),
     calibre = _("Calibre"),
+	notion   = _("Notion"),
+    streak   = _("Streak"),
+    opds     = _("OPDS"),
 }
 
 -- ============================================================
