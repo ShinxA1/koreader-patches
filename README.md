@@ -12,6 +12,7 @@ If you like these patches and want to support me, consider getting me a coffee! 
 
 > [!WARNING]
 > REGARDING **PROJECT TITLE** COMPATIBILITY
+>
 > According to community feedback, only the **quick settings** patch works with Project Title. The other patches are reported to not work well. None of the patches guarantee any sort of Project Title compatibility as I don't use it myself.
 
 ## Installation
