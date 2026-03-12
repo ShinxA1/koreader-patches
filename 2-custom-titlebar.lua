@@ -30,13 +30,41 @@ local _ = require("gettext")
 -- === Persistent config ===
 
 local separator_presets = {
-    { key = "dot",    label = "Middle dot",    value = "  ·  " },
-    { key = "bar",    label = "Vertical bar",  value = "  |  " },
-    { key = "dash",   label = "Dash",          value = "  -  " },
-    { key = "bullet", label = "Bullet",        value = "  •  " },
-    { key = "space",  label = "Space only",    value = "   " },
-    { key = "none",   label = "No separator",  value = "" },
-    { key = "custom", label = "Custom",        value = nil }, -- uses custom_separator
+    {
+        key = "dot",
+        label = "Middle dot",
+        value = "  ·  "
+    },
+    {
+        key = "bar",
+        label = "Vertical bar",
+        value = "  |  "
+    },
+    {
+        key = "dash",
+        label = "Dash",
+        value = "  -  "
+    },
+    {
+        key = "bullet",
+        label = "Bullet",
+        value = "  •  "
+    },
+    {
+        key = "space",
+        label = "Space only",
+        value = "   "
+    },
+    {
+        key = "none",
+        label = "No separator",
+        value = ""
+    },
+    {
+        key = "custom",
+        label = "Custom",
+        value = nil
+    } -- uses custom_separator
 }
 
 local config_default = {
@@ -45,16 +73,23 @@ local config_default = {
         disk = true,
         ram = false,
         frontlight = false,
-        battery = true,
+        battery = true
     },
-    device_name = "",  -- empty = use Device.model
+    device_name = "", -- empty = use Device.model
     separator_key = "dot",
     custom_separator = "  /  ",
-    order = { "wifi", "disk", "ram", "frontlight", "battery" },
+    order = {
+        "wifi",
+        "disk",
+        "ram",
+        "frontlight",
+        "battery"
+    },
     show_time = true,
     show_bottom_border = true,
     colored = false,
     bold_text = false,
+    show_subtitle = false
 }
 
 local function loadConfig()
@@ -79,7 +114,9 @@ local function loadConfig()
         config.order = config_default.order
     else
         local order_set = {}
-        for _, v in ipairs(config.order) do order_set[v] = true end
+        for _, v in ipairs(config.order) do
+            order_set[v] = true
+        end
         for _, v in ipairs(config_default.order) do
             if not order_set[v] then
                 table.insert(config.order, v)
@@ -120,11 +157,13 @@ local cached_disk_time = 0
 
 local RenderText = require("ui/rendertext")
 
-local ColorTextWidget = TextWidget:extend{}
+local ColorTextWidget = TextWidget:extend {}
 
 function ColorTextWidget:paintTo(bb, x, y)
     self:updateSize()
-    if self._is_empty then return end
+    if self._is_empty then
+        return
+    end
 
     if not self.fgcolor or Blitbuffer.isColor8(self.fgcolor) or not Screen:isColorScreen() then
         TextWidget.paintTo(self, bb, x, y)
@@ -138,8 +177,8 @@ function ColorTextWidget:paintTo(bb, x, y)
     end
 
     if not self._xshaping then
-        self._xshaping = self._xtext:shapeLine(self._shape_start, self._shape_end,
-                                            self._shape_idx_to_substitute_with_ellipsis)
+        self._xshaping =
+            self._xtext:shapeLine(self._shape_start, self._shape_end, self._shape_idx_to_substitute_with_ellipsis)
     end
 
     local text_width = bb:getWidth() - x
@@ -149,16 +188,21 @@ function ColorTextWidget:paintTo(bb, x, y)
     local pen_x = 0
     local baseline = self.forced_baseline or self._baseline_h
     for _, xglyph in ipairs(self._xshaping) do
-        if pen_x >= text_width then break end
+        if pen_x >= text_width then
+            break
+        end
         local face = self.face.getFallbackFont(xglyph.font_num)
         local glyph = RenderText:getGlyphByIndex(face, xglyph.glyph, self.bold)
         bb:colorblitFromRGB32(
             glyph.bb,
             x + pen_x + glyph.l + xglyph.x_offset,
             y + baseline - glyph.t - xglyph.y_offset,
-            0, 0,
-            glyph.bb:getWidth(), glyph.bb:getHeight(),
-            self.fgcolor)
+            0,
+            0,
+            glyph.bb:getWidth(),
+            glyph.bb:getHeight(),
+            self.fgcolor
+        )
         pen_x = pen_x + xglyph.x_advance
     end
 end
@@ -166,14 +210,14 @@ end
 -- === Color definitions ===
 
 local colors = {
-    wifi_on = Blitbuffer.ColorRGB32(0x33, 0x99, 0xFF, 0xFF),     -- blue
-    wifi_off = Blitbuffer.ColorRGB32(0xDD, 0x33, 0x33, 0xFF),   -- red
-    disk = Blitbuffer.ColorRGB32(0x33, 0xAA, 0x55, 0xFF),       -- green
-    ram = Blitbuffer.ColorRGB32(0x33, 0xAA, 0x55, 0xFF),        -- green
+    wifi_on = Blitbuffer.ColorRGB32(0x33, 0x99, 0xFF, 0xFF), -- blue
+    wifi_off = Blitbuffer.ColorRGB32(0xDD, 0x33, 0x33, 0xFF), -- red
+    disk = Blitbuffer.ColorRGB32(0x33, 0xAA, 0x55, 0xFF), -- green
+    ram = Blitbuffer.ColorRGB32(0x33, 0xAA, 0x55, 0xFF), -- green
     frontlight = Blitbuffer.ColorRGB32(0xFF, 0xAA, 0x00, 0xFF), -- amber
-    battery_high = Blitbuffer.ColorRGB32(0x33, 0xAA, 0x55, 0xFF),   -- green
-    battery_mid = Blitbuffer.ColorRGB32(0xFF, 0xAA, 0x00, 0xFF),    -- yellow/amber
-    battery_low = Blitbuffer.ColorRGB32(0xDD, 0x33, 0x33, 0xFF),    -- red
+    battery_high = Blitbuffer.ColorRGB32(0x33, 0xAA, 0x55, 0xFF), -- green
+    battery_mid = Blitbuffer.ColorRGB32(0xFF, 0xAA, 0x00, 0xFF), -- yellow/amber
+    battery_low = Blitbuffer.ColorRGB32(0xDD, 0x33, 0x33, 0xFF) -- red
 }
 
 -- === Data fetching functions (return icon, label, color) ===
@@ -186,7 +230,9 @@ local function getDeviceName()
 end
 
 local function getWifiInfo()
-    if not config.show.wifi then return nil end
+    if not config.show.wifi then
+        return nil
+    end
     if NetworkMgr:isWifiOn() then
         return "\u{ECA8}", nil, colors.wifi_on
     else
@@ -195,7 +241,9 @@ local function getWifiInfo()
 end
 
 local function getRamInfo()
-    if not config.show.ram then return nil end
+    if not config.show.ram then
+        return nil
+    end
     local statm = io.open("/proc/self/statm", "r")
     if statm then
         local _, rss = statm:read("*number", "*number")
@@ -208,7 +256,9 @@ local function getRamInfo()
 end
 
 local function getDiskInfo()
-    if not config.show.disk then return nil end
+    if not config.show.disk then
+        return nil
+    end
     local now = os.time()
     if cached_disk_text and (now - cached_disk_time) < 300 then
         return "\u{F0A0}", " " .. cached_disk_text, colors.disk
@@ -231,7 +281,9 @@ local function getDiskInfo()
 end
 
 local function getFrontlightInfo()
-    if not config.show.frontlight then return nil end
+    if not config.show.frontlight then
+        return nil
+    end
     local powerd = Device:getPowerDevice()
     if powerd:isFrontlightOn() then
         return "☼", string.format(" %d%%", powerd:frontlightIntensity()), colors.frontlight
@@ -241,12 +293,13 @@ local function getFrontlightInfo()
 end
 
 local function getBatteryInfo()
-    if not config.show.battery then return nil end
+    if not config.show.battery then
+        return nil
+    end
     if Device:hasBattery() then
         local powerd = Device:getPowerDevice()
         local batt_lvl = powerd:getCapacity()
-        local batt_symbol = powerd:getBatterySymbol(
-            powerd:isCharged(), powerd:isCharging(), batt_lvl)
+        local batt_symbol = powerd:getBatterySymbol(powerd:isCharged(), powerd:isCharging(), batt_lvl)
         local color
         if batt_lvl >= 50 then
             color = colors.battery_high
@@ -267,7 +320,7 @@ local item_fetchers = {
     disk = getDiskInfo,
     ram = getRamInfo,
     frontlight = getFrontlightInfo,
-    battery = getBatteryInfo,
+    battery = getBatteryInfo
 }
 
 local item_labels = {
@@ -275,20 +328,21 @@ local item_labels = {
     disk = _("Disk space"),
     ram = _("RAM usage"),
     frontlight = _("Frontlight"),
-    battery = _("Battery"),
+    battery = _("Battery")
 }
 
 -- === Build the status row ===
 
 local function createStatusRow()
-    local left_text = TextWidget:new{
+    local left_text =
+        TextWidget:new {
         text = getDeviceName(),
-        face = getBarFont(),
+        face = getBarFont()
     }
 
     local sep = getSeparator()
     local use_color = config.colored
-    local right_group = HorizontalGroup:new{}
+    local right_group = HorizontalGroup:new {}
     local first = true
     for _, key in ipairs(config.order) do
         local fn = item_fetchers[key]
@@ -296,31 +350,43 @@ local function createStatusRow()
             local icon, label, color = fn()
             if icon and icon ~= "" then
                 if not first and sep ~= "" then
-                    table.insert(right_group, TextWidget:new{
-                        text = sep,
-                        face = getBarFont(),
-                    })
+                    table.insert(
+                        right_group,
+                        TextWidget:new {
+                            text = sep,
+                            face = getBarFont()
+                        }
+                    )
                 end
                 if use_color and color then
                     -- Icon in color, label in black
-                    table.insert(right_group, ColorTextWidget:new{
-                        text = icon,
-                        face = getBarFont(),
-                        fgcolor = color,
-                    })
-                    if label and label ~= "" then
-                        table.insert(right_group, TextWidget:new{
-                            text = label,
+                    table.insert(
+                        right_group,
+                        ColorTextWidget:new {
+                            text = icon,
                             face = getBarFont(),
-                        })
+                            fgcolor = color
+                        }
+                    )
+                    if label and label ~= "" then
+                        table.insert(
+                            right_group,
+                            TextWidget:new {
+                                text = label,
+                                face = getBarFont()
+                            }
+                        )
                     end
                 else
                     -- All black: combine icon + label
                     local text = label and (icon .. label) or icon
-                    table.insert(right_group, TextWidget:new{
-                        text = text,
-                        face = getBarFont(),
-                    })
+                    table.insert(
+                        right_group,
+                        TextWidget:new {
+                            text = text,
+                            face = getBarFont()
+                        }
+                    )
                 end
                 first = false
             end
@@ -333,51 +399,80 @@ local function createStatusRow()
     local inner_w = screen_w - h_padding * 2
     local CenterContainer = require("ui/widget/container/centercontainer")
 
-    local row = OverlapGroup:new{
-        dimen = Geom:new{ w = screen_w, h = row_height },
-        LeftContainer:new{
-            dimen = Geom:new{ w = screen_w, h = row_height },
-            HorizontalGroup:new{
-                HorizontalSpan:new{ width = h_padding },
-                left_text,
-            },
+    local row =
+        OverlapGroup:new {
+        dimen = Geom:new {
+            w = screen_w,
+            h = row_height
         },
-        RightContainer:new{
-            dimen = Geom:new{ w = screen_w, h = row_height },
-            HorizontalGroup:new{
+        LeftContainer:new {
+            dimen = Geom:new {
+                w = screen_w,
+                h = row_height
+            },
+            HorizontalGroup:new {
+                HorizontalSpan:new {
+                    width = h_padding
+                },
+                left_text
+            }
+        },
+        RightContainer:new {
+            dimen = Geom:new {
+                w = screen_w,
+                h = row_height
+            },
+            HorizontalGroup:new {
                 right_group,
-                HorizontalSpan:new{ width = h_padding },
-            },
-        },
+                HorizontalSpan:new {
+                    width = h_padding
+                }
+            }
+        }
     }
 
     if config.show_time then
-        local time_text = TextWidget:new{
+        local time_text =
+            TextWidget:new {
             text = os.date("%H:%M"),
-            face = getBarFont(),
+            face = getBarFont()
         }
-        table.insert(row, 2, CenterContainer:new{
-            dimen = Geom:new{ w = screen_w, h = row_height },
-            time_text,
-        })
+        table.insert(
+            row,
+            2,
+            CenterContainer:new {
+                dimen = Geom:new {
+                    w = screen_w,
+                    h = row_height
+                },
+                time_text
+            }
+        )
     end
 
     if not config.show_bottom_border then
         return row
     end
 
-    local border = LineWidget:new{
-        dimen = Geom:new{ w = inner_w, h = Size.line.medium },
-        background = Blitbuffer.COLOR_LIGHT_GRAY,
+    local border =
+        LineWidget:new {
+        dimen = Geom:new {
+            w = inner_w,
+            h = Size.line.medium
+        },
+        background = Blitbuffer.COLOR_LIGHT_GRAY
     }
 
-    return VerticalGroup:new{
+    return VerticalGroup:new {
         align = "center",
         row,
-        CenterContainer:new{
-            dimen = Geom:new{ w = screen_w, h = Size.line.medium },
-            border,
-        },
+        CenterContainer:new {
+            dimen = Geom:new {
+                w = screen_w,
+                h = Size.line.medium
+            },
+            border
+        }
     }
 end
 
@@ -385,55 +480,73 @@ end
 
 function FileManager:_updateStatusBar()
     local tb = self.title_bar
-    if not tb or not tb.title_group then return end
+    if not tb or not tb.title_group then
+        return
+    end
 
     local title_group = tb.title_group
-    if #title_group < 2 then return end
+    if #title_group < 2 then
+        return
+    end
+
+    -- Save original heights once per title_bar instance (reset on setupLayout)
+    if not tb._orig_heights then
+        tb._orig_heights = {
+            span1 = title_group[1]:getSize().h,
+            sub_h = #title_group >= 4 and title_group[4]:getSize().h or 0
+        }
+    end
+    local orig = tb._orig_heights
 
     local status_row = createStatusRow()
     title_group[2] = status_row
     title_group:resetLayout()
 
-    -- title_group: [1] VerticalSpan, [2] status_row, [3] VerticalSpan, [4] subtitle
-    local subtitle_y = 0
-    for i = 1, math.min(3, #title_group) do
-        subtitle_y = subtitle_y + title_group[i]:getSize().h
-    end
+    local status_h = title_group[2]:getSize().h
+    local subtitle_h = orig.sub_h
 
-    local subtitle_h = 0
-    if #title_group >= 4 then
-        subtitle_h = title_group[4]:getSize().h
-    end
+    -- Calculate subtitle center using stable original values
+    local area_h = tb.titlebar_height - orig.span1 - status_h
+    local subtitle_center_y = orig.span1 + status_h + math.floor((area_h - subtitle_h) / 2)
 
-    local area_h = tb.titlebar_height - subtitle_y
-    local subtitle_center_y = subtitle_y + math.floor((area_h - subtitle_h) / 2)
-
-    -- Center button icons with subtitle text
+    -- Position buttons
     local btn_padding = tb.button_padding
     local icon_h = tb.left_button and tb.left_button.width or 0
-    local target_center = subtitle_center_y + math.floor(subtitle_h / 2)
+    local status_center = orig.span1 + math.floor(status_h / 2)
+    local target_center = math.floor(status_center * 0.0 + (subtitle_center_y + math.floor(subtitle_h / 2)) * 1.0)
     local button_y = target_center - btn_padding - math.floor(icon_h / 2)
 
     if tb.left_button then
         tb.left_button.overlap_align = nil
-        tb.left_button.overlap_offset = {0, button_y}
+        tb.left_button.overlap_offset = {
+            0,
+            button_y
+        }
     end
     if tb.right_button then
         local btn_w = tb.right_button:getSize().w
         tb.right_button.overlap_align = nil
-        tb.right_button.overlap_offset = {tb.width - btn_w, button_y}
+        tb.right_button.overlap_offset = {
+            tb.width - btn_w,
+            button_y
+        }
     end
 
-    -- Center subtitle vertically in the area
+    -- Hide subtitle or preserve height
+    local VerticalSpan = require("ui/widget/verticalspan")
+    if #title_group >= 4 and not config.show_subtitle then
+        title_group[4] = VerticalSpan:new {width = subtitle_h}
+        title_group:resetLayout()
+    end
+
+    -- Set padding between status row and subtitle area (using stable base values)
     if #title_group >= 3 then
-        local VerticalSpan = require("ui/widget/verticalspan")
-        local status_row_bottom = 0
-        for i = 1, 2 do
-            status_row_bottom = status_row_bottom + title_group[i]:getSize().h
-        end
-        local new_padding = subtitle_center_y - status_row_bottom
+        local new_padding = subtitle_center_y - orig.span1 - status_h
         if new_padding > 0 then
-            title_group[3] = VerticalSpan:new{ width = new_padding }
+            title_group[3] =
+                VerticalSpan:new {
+                width = new_padding
+            }
             title_group:resetLayout()
         end
     end
@@ -466,62 +579,85 @@ function FileManagerMenu:setUpdateItemTable()
                 keep_menu_open = true,
                 callback = function(touchmenu_instance)
                     local dlg
-                    dlg = InputDialog:new{
+                    dlg =
+                        InputDialog:new {
                         title = _("Device name"),
                         input = config.device_name,
                         hint = Device.model or "",
-                        buttons = {{
+                        buttons = {
                             {
-                                text = _("Cancel"),
-                                id = "close",
-                                callback = function() UIManager:close(dlg) end,
-                            },
-                            {
-                                text = _("Set"),
-                                is_enter_default = true,
-                                callback = function()
-                                    config.device_name = dlg:getInputText()
-                                    UIManager:close(dlg)
-                                    refresh(touchmenu_instance)
-                                end,
-                            },
-                        }},
+                                {
+                                    text = _("Cancel"),
+                                    id = "close",
+                                    callback = function()
+                                        UIManager:close(dlg)
+                                    end
+                                },
+                                {
+                                    text = _("Set"),
+                                    is_enter_default = true,
+                                    callback = function()
+                                        config.device_name = dlg:getInputText()
+                                        UIManager:close(dlg)
+                                        refresh(touchmenu_instance)
+                                    end
+                                }
+                            }
+                        }
                     }
                     UIManager:show(dlg)
                     dlg:onShowKeyboard()
-                end,
+                end
             },
             {
                 text = _("Show time"),
-                checked_func = function() return config.show_time end,
+                checked_func = function()
+                    return config.show_time
+                end,
                 callback = function(touchmenu_instance)
                     config.show_time = not config.show_time
                     refresh(touchmenu_instance)
-                end,
+                end
             },
             {
                 text = _("Show bottom border"),
-                checked_func = function() return config.show_bottom_border end,
+                checked_func = function()
+                    return config.show_bottom_border
+                end,
                 callback = function(touchmenu_instance)
                     config.show_bottom_border = not config.show_bottom_border
                     refresh(touchmenu_instance)
-                end,
+                end
             },
             {
                 text = _("Bold text"),
-                checked_func = function() return config.bold_text end,
+                checked_func = function()
+                    return config.bold_text
+                end,
                 callback = function(touchmenu_instance)
                     config.bold_text = not config.bold_text
                     refresh(touchmenu_instance)
+                end
+            },
+            {
+                text = _("Show folder name"),
+                checked_func = function()
+                    return config.show_subtitle
                 end,
+                callback = function(touchmenu_instance)
+                    config.show_subtitle = not config.show_subtitle
+                    refresh(touchmenu_instance)
+                end
             },
             {
                 text = _("Colored status icons"),
-                checked_func = function() return config.colored end,
+                checked_func = function()
+                    return config.colored
+                end,
                 callback = function(touchmenu_instance)
                     config.colored = not config.colored
                     refresh(touchmenu_instance)
-                end,
+                end
             },
             {
                 text = _("Items"),
@@ -533,14 +669,18 @@ function FileManagerMenu:setUpdateItemTable()
                         callback = function(touchmenu_instance)
                             local sort_items = {}
                             for _, key in ipairs(config.order) do
-                                table.insert(sort_items, {
-                                    text = item_labels[key] or key,
-                                    orig_item = key,
-                                    dim = not config.show[key],
-                                })
+                                table.insert(
+                                    sort_items,
+                                    {
+                                        text = item_labels[key] or key,
+                                        orig_item = key,
+                                        dim = not config.show[key]
+                                    }
+                                )
                             end
                             local sort_widget
-                            sort_widget = SortWidget:new{
+                            sort_widget =
+                                SortWidget:new {
                                 title = _("Arrange titlebar items"),
                                 item_table = sort_items,
                                 callback = function()
@@ -548,52 +688,62 @@ function FileManagerMenu:setUpdateItemTable()
                                         config.order[i] = item.orig_item
                                     end
                                     refresh(touchmenu_instance)
-                                end,
+                                end
                             }
                             UIManager:show(sort_widget)
-                        end,
+                        end
                     },
                     {
                         text = _("WiFi"),
-                        checked_func = function() return config.show.wifi end,
+                        checked_func = function()
+                            return config.show.wifi
+                        end,
                         callback = function(touchmenu_instance)
                             config.show.wifi = not config.show.wifi
                             refresh(touchmenu_instance)
-                        end,
+                        end
                     },
                     {
                         text = _("Disk space"),
-                        checked_func = function() return config.show.disk end,
+                        checked_func = function()
+                            return config.show.disk
+                        end,
                         callback = function(touchmenu_instance)
                             config.show.disk = not config.show.disk
                             refresh(touchmenu_instance)
-                        end,
+                        end
                     },
                     {
                         text = _("RAM usage"),
-                        checked_func = function() return config.show.ram end,
+                        checked_func = function()
+                            return config.show.ram
+                        end,
                         callback = function(touchmenu_instance)
                             config.show.ram = not config.show.ram
                             refresh(touchmenu_instance)
-                        end,
+                        end
                     },
                     {
                         text = _("Frontlight"),
-                        checked_func = function() return config.show.frontlight end,
+                        checked_func = function()
+                            return config.show.frontlight
+                        end,
                         callback = function(touchmenu_instance)
                             config.show.frontlight = not config.show.frontlight
                             refresh(touchmenu_instance)
-                        end,
+                        end
                     },
                     {
                         text = _("Battery"),
-                        checked_func = function() return config.show.battery end,
+                        checked_func = function()
+                            return config.show.battery
+                        end,
                         callback = function(touchmenu_instance)
                             config.show.battery = not config.show.battery
                             refresh(touchmenu_instance)
-                        end,
-                    },
-                },
+                        end
+                    }
+                }
             },
             {
                 text_func = function()
@@ -610,57 +760,73 @@ function FileManagerMenu:setUpdateItemTable()
                     local items = {}
                     for _i, preset in ipairs(separator_presets) do
                         if preset.key ~= "custom" then
-                            table.insert(items, {
-                                text = preset.label .. "  '" .. preset.value .. "'",
-                                checked_func = function() return config.separator_key == preset.key end,
-                                callback = function(touchmenu_instance)
-                                    config.separator_key = preset.key
-                                    refresh(touchmenu_instance)
-                                end,
-                            })
+                            table.insert(
+                                items,
+                                {
+                                    text = preset.label .. "  '" .. preset.value .. "'",
+                                    checked_func = function()
+                                        return config.separator_key == preset.key
+                                    end,
+                                    callback = function(touchmenu_instance)
+                                        config.separator_key = preset.key
+                                        refresh(touchmenu_instance)
+                                    end
+                                }
+                            )
                         else
-                            table.insert(items, {
-                                text_func = function()
-                                    return _("Custom (long-press to edit)") .. "  '" .. config.custom_separator .. "'"
-                                end,
-                                checked_func = function() return config.separator_key == "custom" end,
-                                callback = function(touchmenu_instance)
-                                    config.separator_key = "custom"
-                                    refresh(touchmenu_instance)
-                                end,
-                                hold_callback = function(touchmenu_instance)
-                                    local dlg
-                                    dlg = InputDialog:new{
-                                        title = _("Custom separator"),
-                                        input = config.custom_separator,
-                                        buttons = {{
-                                            {
-                                                text = _("Cancel"),
-                                                id = "close",
-                                                callback = function() UIManager:close(dlg) end,
-                                            },
-                                            {
-                                                text = _("Set"),
-                                                is_enter_default = true,
-                                                callback = function()
-                                                    config.custom_separator = dlg:getInputText()
-                                                    config.separator_key = "custom"
-                                                    UIManager:close(dlg)
-                                                    refresh(touchmenu_instance)
-                                                end,
-                                            },
-                                        }},
-                                    }
-                                    UIManager:show(dlg)
-                                    dlg:onShowKeyboard()
-                                end,
-                            })
+                            table.insert(
+                                items,
+                                {
+                                    text_func = function()
+                                        return _("Custom (long-press to edit)") ..
+                                            "  '" .. config.custom_separator .. "'"
+                                    end,
+                                    checked_func = function()
+                                        return config.separator_key == "custom"
+                                    end,
+                                    callback = function(touchmenu_instance)
+                                        config.separator_key = "custom"
+                                        refresh(touchmenu_instance)
+                                    end,
+                                    hold_callback = function(touchmenu_instance)
+                                        local dlg
+                                        dlg =
+                                            InputDialog:new {
+                                            title = _("Custom separator"),
+                                            input = config.custom_separator,
+                                            buttons = {
+                                                {
+                                                    {
+                                                        text = _("Cancel"),
+                                                        id = "close",
+                                                        callback = function()
+                                                            UIManager:close(dlg)
+                                                        end
+                                                    },
+                                                    {
+                                                        text = _("Set"),
+                                                        is_enter_default = true,
+                                                        callback = function()
+                                                            config.custom_separator = dlg:getInputText()
+                                                            config.separator_key = "custom"
+                                                            UIManager:close(dlg)
+                                                            refresh(touchmenu_instance)
+                                                        end
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        UIManager:show(dlg)
+                                        dlg:onShowKeyboard()
+                                    end
+                                }
+                            )
                         end
                     end
                     return items
-                end)(),
-            },
-        },
+                end)()
+            }
+        }
     }
 
     orig_setUpdateItemTable(self)
@@ -674,21 +840,15 @@ function FileManager:setupLayout()
     orig_setupLayout(self)
     -- Defer to run after all plugins (coverbrowser etc.) finish init
     local fm = self
-    UIManager:nextTick(function()
-        fm:_updateStatusBar()
-        -- Restore subtitle path (refreshPath doesn't trigger onPathChanged)
-        if fm.file_chooser and fm.file_chooser.path then
-            fm:updateTitleBarPath(fm.file_chooser.path)
+    UIManager:nextTick(
+        function()
+            fm:_updateStatusBar()
+            -- Restore subtitle path (refreshPath doesn't trigger onPathChanged)
+            if fm.file_chooser and fm.file_chooser.path then
+                fm:updateTitleBarPath(fm.file_chooser.path)
+            end
         end
-    end)
-
-    -- Periodic refresh for time/battery/disk
-    local function autoRefresh()
-        if FileManager.instance ~= fm then return end
-        fm:_updateStatusBar()
-        UIManager:scheduleIn(60, autoRefresh)
-    end
-    UIManager:scheduleIn(60, autoRefresh)
+    )
 end
 
 local orig_onPathChanged = FileManager.onPathChanged
@@ -703,7 +863,9 @@ end
 local function chainHook(event_name)
     local orig = FileManager[event_name]
     FileManager[event_name] = function(self)
-        if orig then orig(self) end
+        if orig then
+            orig(self)
+        end
         self:_updateStatusBar()
     end
 end
