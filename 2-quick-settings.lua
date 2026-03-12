@@ -1,11 +1,6 @@
 -- Quick Settings tab for KOReader top menu
 -- Adds a new tab at the far left with Wi-Fi, action buttons, and frontlight/warmth sliders.
 -- Works in both File Manager and Book Reader views.
--- Additional buttons for the Quick Settings tab.
--- Adds optional buttons for OPDS Catalog, NotionSync, and Reading Streak.
--- OPDS Catalog is included with KOReader and allows browsing OPDS book catalogs.
--- NotionSync plugin by Cezary Pukownik: https://github.com/CezaryPukownik/notionsync.koplugin
--- Reading Streak plugin by advokatb: https://github.com/advokatb/readingstreak.koplugin
 
 local Blitbuffer = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
@@ -27,15 +22,121 @@ local TextWidget = require("ui/widget/textwidget")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
-local _ = require("gettext")
+local gettext = require("gettext")
 local Screen = Device.screen
+
+-- ============================================================
+-- LOCALIZATION
+-- ============================================================
+
+local PATCH_L10N = {
+    en = {
+        -- Confirmations
+        ["Are you sure you want to restart KOReader?"] = "Are you sure you want to restart KOReader?",
+        ["Are you sure you want to exit KOReader?"] = "Are you sure you want to exit KOReader?",
+        -- Buttons
+        ["Restart"] = "Restart",
+        ["Exit"] = "Exit",
+        -- Notifications
+        ["QuickRSS plugin is not installed."] = "QuickRSS plugin is not installed.",
+        ["Calibre plugin is not available."] = "Calibre plugin is not available.",
+        -- Button display names
+        ["Wi-Fi"] = "Wi-Fi",
+        ["Night mode"] = "Night mode",
+        ["Rotate"] = "Rotate",
+        ["USB"] = "USB",
+        ["Sleep"] = "Sleep",
+        ["File search"] = "File search",
+        ["QuickRSS"] = "QuickRSS",
+        ["Cloud storage"] = "Cloud storage",
+        ["Z-Library"] = "Z-Library",
+        ["Calibre"] = "Calibre",
+        -- Sliders
+        ["Frontlight"] = "Frontlight",
+        ["Warmth"] = "Warmth",
+        ["Max"] = "Max",
+        -- Settings menu
+        ["Quick settings"] = "Quick settings",
+        ["Buttons"] = "Buttons",
+        ["Arrange buttons"] = "Arrange buttons",
+        ["Arrange quick settings buttons"] = "Arrange quick settings buttons",
+        ["Show frontlight slider"] = "Show frontlight slider",
+        ["Show warmth slider"] = "Show warmth slider",
+        ["Always open on this tab"] = "Always open on this tab"
+    },
+    pt = {
+        -- Confirmações
+        ["Are you sure you want to restart KOReader?"] = "Tem certeza que deseja reiniciar o KOReader?",
+        ["Are you sure you want to exit KOReader?"] = "Tem certeza que deseja sair do KOReader?",
+        -- Botões
+        ["Restart"] = "Reiniciar",
+        ["Exit"] = "Sair",
+        -- Notificações
+        ["QuickRSS plugin is not installed."] = "O plugin QuickRSS não está instalado.",
+        ["Calibre plugin is not available."] = "O plugin Calibre não está disponível.",
+        -- Nomes dos botões
+        ["Wi-Fi"] = "Wi-Fi",
+        ["Night mode"] = "Modo noturno",
+        ["Rotate"] = "Girar",
+        ["USB"] = "SSH",
+        ["Sleep"] = "Suspender",
+        ["File search"] = "Buscar arquivo",
+        ["QuickRSS"] = "QuickRSS",
+        ["Cloud storage"] = "Armazenamento em nuvem",
+        ["Z-Library"] = "Z-Library",
+        ["Calibre"] = "Calibre",
+        -- Controles deslizantes
+        ["Frontlight"] = "Brilho",
+        ["Warmth"] = "Temperatura",
+        ["Max"] = "Máx",
+        -- Menu de configurações
+        ["Quick settings"] = "Configurações rápidas",
+        ["Buttons"] = "Botões",
+        ["Arrange buttons"] = "Organizar botões",
+        ["Arrange quick settings buttons"] = "Organizar botões das configurações rápidas",
+        ["Show frontlight slider"] = "Mostrar controle de luz frontal",
+        ["Show warmth slider"] = "Mostrar controle de temperatura",
+        ["Always open on this tab"] = "Sempre abrir nesta aba"
+    }
+}
+
+local function l10nLookup(msg)
+    local lang = "en"
+    if G_reader_settings and G_reader_settings.readSetting then
+        lang = G_reader_settings:readSetting("language") or "en"
+    end
+    local lang_base = lang:match("^([a-z]+)") or lang
+    local map = PATCH_L10N[lang] or PATCH_L10N[lang_base] or PATCH_L10N.en or {}
+    return map[msg]
+end
+
+local function _(msg)
+    local custom = l10nLookup(msg)
+    if custom then
+        return custom
+    end
+    return gettext(msg)
+end
 
 -- ============================================================
 -- Configuration
 -- ============================================================
 
 local config_default = {
-    button_order = { "wifi", "night", "rotate", "usb", "search", "quickrss", "cloud", "zlibrary", "calibre", "notion", "streak", "opds", "restart", "exit", "sleep" },
+    button_order = {
+        "wifi",
+        "night",
+        "rotate",
+        "usb",
+        "search",
+        "quickrss",
+        "cloud",
+        "zlibrary",
+        "calibre",
+        "restart",
+        "exit",
+        "sleep"
+    },
     show_buttons = {
         wifi = true,
         night = true,
@@ -48,15 +149,11 @@ local config_default = {
         calibre = false,
         restart = true,
         exit = true,
-        sleep = true,
-        -- External plugin buttons (disabled by default; enable if plugin is installed)
-        notion = false,
-        streak = false,
-        opds = false,			 
+        sleep = true
     },
     show_frontlight = true,
     show_warmth = true,
-    open_on_start = false,
+    open_on_start = false
 }
 
 local config
@@ -106,7 +203,7 @@ loadConfig()
 local button_defs = {
     wifi = {
         icon = "quick_wifi",
-        label = "Wi-Fi",
+        label = _("Wi-Fi"),
         label_func = function()
             if NetworkMgr:isWifiOn() then
                 local net = NetworkMgr:getCurrentNetwork()
@@ -116,24 +213,31 @@ local button_defs = {
             end
             return "Wi-Fi"
         end,
-        active_func = function() return NetworkMgr:isWifiOn() end,
+        active_func = function()
+            return NetworkMgr:isWifiOn()
+        end,
         callback = function(touch_menu)
             if NetworkMgr:isWifiOn() then
                 NetworkMgr:toggleWifiOff()
             else
                 NetworkMgr:toggleWifiOn()
             end
-            UIManager:scheduleIn(1, function()
-                if touch_menu.item_table and touch_menu.item_table.panel then
-                    touch_menu:updateItems(1)
+            UIManager:scheduleIn(
+                1,
+                function()
+                    if touch_menu.item_table and touch_menu.item_table.panel then
+                        touch_menu:updateItems(1)
+                    end
                 end
-            end)
-        end,
+            )
+        end
     },
     night = {
         icon = "quick_nightmode",
-        label = "Night",
-        active_func = function() return G_reader_settings:isTrue("night_mode") end,
+        label = _("Night"),
+        active_func = function()
+            return G_reader_settings:isTrue("night_mode")
+        end,
         callback = function(touch_menu)
             local night_mode = G_reader_settings:isTrue("night_mode")
             Screen:toggleNightMode()
@@ -141,164 +245,167 @@ local button_defs = {
             G_reader_settings:saveSetting("night_mode", not night_mode)
             touch_menu:updateItems(1)
             UIManager:setDirty("all", "full")
-        end,
+        end
     },
     rotate = {
         icon = "quick_rotate",
-        label = "Rotate",
+        label = _("Rotate"),
         callback = function()
             UIManager:broadcastEvent(Event:new("SwapRotation"))
-        end,
+        end
     },
     usb = {
         icon = "quick_usb",
-        label = "USB",
-        callback = function()
-            if Device:canToggleMassStorage() then
-                UIManager:broadcastEvent(Event:new("RequestUSBMS"))
-            end
+        label = _("SSH"),
+        active_func = function()
+            local util = require("util")
+            return util.pathExists("/tmp/dropbear_koreader.pid")
         end,
+        callback = function(touch_menu)
+            UIManager:broadcastEvent(Event:new("ToggleSSHServer"))
+            UIManager:scheduleIn(
+                2,
+                function()
+                    if touch_menu.item_table and touch_menu.item_table.panel then
+                        touch_menu:updateItems(1)
+                    end
+                end
+            )
+        end
     },
     restart = {
         icon = "quick_restart",
-        label = "Restart",
+        label = _("Restart"),
         callback = function()
-            UIManager:show(ConfirmBox:new{
-                text = _("Are you sure you want to restart KOReader?"),
-                ok_text = _("Restart"),
-                ok_callback = function()
-                    UIManager:broadcastEvent(Event:new("Restart"))
-                end,
-            })
-        end,
+            UIManager:show(
+                ConfirmBox:new {
+                    text = _("Are you sure you want to restart KOReader?"),
+                    ok_text = _("Restart"),
+                    ok_callback = function()
+                        UIManager:broadcastEvent(Event:new("Restart"))
+                    end
+                }
+            )
+        end
     },
     exit = {
         icon = "quick_exit",
-        label = "Exit",
+        label = _("Exit"),
         callback = function()
-            UIManager:show(ConfirmBox:new{
-                text = _("Are you sure you want to exit KOReader?"),
-                ok_text = _("Exit"),
-                ok_callback = function()
-                    UIManager:broadcastEvent(Event:new("Exit"))
-                end,
-            })
-        end,
+            UIManager:show(
+                ConfirmBox:new {
+                    text = _("Are you sure you want to exit KOReader?"),
+                    ok_text = _("Exit"),
+                    ok_callback = function()
+                        UIManager:broadcastEvent(Event:new("Exit"))
+                    end
+                }
+            )
+        end
     },
     sleep = {
         icon = "quick_sleep",
-        label = "Sleep",
+        label = _("Sleep"),
         callback = function()
             if Device:canSuspend() then
                 UIManager:broadcastEvent(Event:new("RequestSuspend"))
             elseif Device:canPowerOff() then
                 UIManager:broadcastEvent(Event:new("RequestPowerOff"))
             end
-        end,
+        end
     },
     search = {
         icon = "quick_search",
-        label = "Search",
+        label = _("Search"),
         callback = function()
             UIManager:broadcastEvent(Event:new("ShowFileSearch"))
-        end,
+        end
     },
     quickrss = {
         icon = "quick_quickrss",
-        label = "QuickRSS",
+        label = _("QuickRSS"),
         callback = function()
             local ok, QuickRSSUI = pcall(require, "modules/ui/feed_view")
             if ok and QuickRSSUI then
-                local view = QuickRSSUI:new{}
+                local view = QuickRSSUI:new {}
                 UIManager:show(view)
                 view:_fetch()
             else
                 local InfoMessage = require("ui/widget/infomessage")
-                UIManager:show(InfoMessage:new{
-                    text = _("QuickRSS plugin is not installed."),
-                })
+                UIManager:show(
+                    InfoMessage:new {
+                        text = _("QuickRSS plugin is not installed.")
+                    }
+                )
             end
-        end,
+        end
     },
     cloud = {
         icon = "quick_cloud",
-        label = "Cloud",
+        label = _("Cloud"),
         callback = function()
             UIManager:broadcastEvent(Event:new("ShowCloudStorage"))
-        end,
+        end
     },
     zlibrary = {
         icon = "quick_zlib",
-        label = "Z-Lib",
+        label = _("Z-Lib"),
         callback = function()
             UIManager:broadcastEvent(Event:new("ZlibrarySearch"))
-        end,
+        end
     },
     calibre = {
         icon = "quick_calibre",
-        label = "Calibre",
+        label = _("Calibre"),
         active_func = function()
-            local CW = package.loaded["wireless"]
-            return CW ~= nil and CW.calibre_socket ~= nil
+            local ok, CalibreWireless = pcall(require, "calibre/wireless")
+            return ok and CalibreWireless and CalibreWireless.calibre_socket ~= nil
         end,
         callback = function(touch_menu)
-            local CW = package.loaded["wireless"]
-            if CW and CW.calibre_socket ~= nil then
-                UIManager:broadcastEvent(Event:new("CloseWirelessConnection"))
+            local ok, CalibreWireless = pcall(require, "calibre/wireless")
+            if not ok or not CalibreWireless then
+                local InfoMessage = require("ui/widget/infomessage")
+                UIManager:show(
+                    InfoMessage:new {
+                        text = _("Calibre plugin is not available.")
+                    }
+                )
+                return
+            end
+            if not CalibreWireless.calibre_socket then
+                CalibreWireless:connect()
             else
-                UIManager:broadcastEvent(Event:new("StartWirelessConnection"))
+                CalibreWireless:disconnect()
             end
-            UIManager:scheduleIn(1, function()
-                touch_menu:updateItems(1)
-            end)
-        end,
-    },
-	notion = {
-        icon = "quick_notion",
-        label = "NotionSync",
-        callback = function()
-            local ok_r, ReaderUI = pcall(require, "apps/reader/readerui")
-            local ok_f, FileManager = pcall(require, "apps/filemanager/filemanager")
-            local ui = (ok_r and ReaderUI.instance) or (ok_f and FileManager.instance)
-            if ui and ui.NotionSync then
-                ui.NotionSync:onSyncAllBooksRequested()
-            end
-        end,
-    },
-    streak = {
-        icon = "quick_streak",
-        label = "Streak",
-        callback = function()
-            UIManager:broadcastEvent(Event:new("ShowReadingStreakCalendar"))
-        end,
-    },
-    opds = {
-        icon = "quick_opds",
-        label = "OPDS",
-        callback = function()
-            UIManager:broadcastEvent(Event:new("ShowOPDSCatalog"))
-        end,
-    },		  
+            UIManager:scheduleIn(
+                1,
+                function()
+                    if touch_menu.item_table and touch_menu.item_table.panel then
+                        touch_menu:updateItems(1)
+                    end
+                end
+            )
+        end
+    }
 }
 
--- Display names for the settings menu
-local button_display_names = {
-    wifi = _("Wi-Fi"),
-    night = _("Night mode"),
-    rotate = _("Rotate"),
-    usb = _("USB"),
-    restart = _("Restart"),
-    exit = _("Exit"),
-    sleep = _("Sleep"),
-    search = _("File search"),
-    quickrss = _("QuickRSS"),
-    cloud = _("Cloud storage"),
-    zlibrary = _("Z-Library"),
-    calibre = _("Calibre"),
-	notion   = _("Notion"),
-    streak   = _("Streak"),
-    opds     = _("OPDS"),
-}
+-- Display names for the settings menu (resolved at call-time so language changes are respected)
+local function getButtonDisplayNames()
+    return {
+        wifi = _("Wi-Fi"),
+        night = _("Night mode"),
+        rotate = _("Rotate"),
+        usb = _("USB"),
+        restart = _("Restart"),
+        exit = _("Exit"),
+        sleep = _("Sleep"),
+        search = _("File search"),
+        quickrss = _("QuickRSS"),
+        cloud = _("Cloud storage"),
+        zlibrary = _("Z-Library"),
+        calibre = _("Calibre")
+    }
+end
 
 -- ============================================================
 -- Panel builder — returns panel widget + refs for tap handling
@@ -311,7 +418,9 @@ local function createQuickSettingsPanel(touch_menu)
     local powerd = Device:getPowerDevice()
 
     -- Refs table: stored on touch_menu for gesture handling
-    local refs = { buttons = {} }
+    local refs = {
+        buttons = {}
+    }
 
     -- ----- Top row: action buttons -----
 
@@ -319,7 +428,13 @@ local function createQuickSettingsPanel(touch_menu)
     local visible_buttons = {}
     for _, id in ipairs(config.button_order) do
         if config.show_buttons[id] and button_defs[id] then
-            table.insert(visible_buttons, { id = id, def = button_defs[id] })
+            table.insert(
+                visible_buttons,
+                {
+                    id = id,
+                    def = button_defs[id]
+                }
+            )
         end
     end
 
@@ -332,43 +447,52 @@ local function createQuickSettingsPanel(touch_menu)
     local normal_border = Screen:scaleBySize(2)
 
     local function makeActionButton(icon_name, label_text, active)
-        local icon = IconWidget:new{
+        local icon =
+            IconWidget:new {
             icon = icon_name,
             width = icon_size,
             height = icon_size,
-            alpha = true,
+            alpha = true
         }
-        local circle = FrameContainer:new{
+        local circle =
+            FrameContainer:new {
             width = action_btn_size,
             height = action_btn_size,
             radius = math.floor(action_btn_size / 2),
             bordersize = normal_border,
             background = active and Blitbuffer.COLOR_LIGHT_GRAY or Blitbuffer.COLOR_WHITE,
             padding = 0,
-            CenterContainer:new{
-                dimen = Geom:new{
+            CenterContainer:new {
+                dimen = Geom:new {
                     w = action_btn_size - normal_border * 2,
-                    h = action_btn_size - normal_border * 2,
+                    h = action_btn_size - normal_border * 2
                 },
-                icon,
-            },
+                icon
+            }
         }
-        local label = TextWidget:new{
+        local label =
+            TextWidget:new {
             text = label_text,
             face = label_font,
-            max_width = action_btn_size + Screen:scaleBySize(4),
+            max_width = action_btn_size + Screen:scaleBySize(16)
         }
-        local group = VerticalGroup:new{
+        local group =
+            VerticalGroup:new {
             align = "center",
             circle,
-            VerticalSpan:new{ width = Screen:scaleBySize(2) },
-            label,
+            VerticalSpan:new {
+                width = Screen:scaleBySize(2)
+            },
+            label
         }
         return group, circle
     end
 
     -- Build button row
-    local top_row = HorizontalGroup:new{ align = "center" }
+    local top_row =
+        HorizontalGroup:new {
+        align = "center"
+    }
 
     if num_buttons > 0 then
         local btn_gap = math.floor((inner_width - num_buttons * action_btn_size) / math.max(num_buttons - 1, 1))
@@ -382,16 +506,24 @@ local function createQuickSettingsPanel(touch_menu)
             local active = def.active_func and def.active_func() or false
             local btn_widget, btn_circle = makeActionButton(def.icon, label_text, active)
 
-            table.insert(refs.buttons, {
-                widget = btn_circle,
-                callback = function()
-                    def.callback(touch_menu)
-                end,
-            })
+            table.insert(
+                refs.buttons,
+                {
+                    widget = btn_circle,
+                    callback = function()
+                        def.callback(touch_menu)
+                    end
+                }
+            )
 
             table.insert(top_row, btn_widget)
             if i < num_buttons then
-                table.insert(top_row, HorizontalSpan:new{ width = btn_gap })
+                table.insert(
+                    top_row,
+                    HorizontalSpan:new {
+                        width = btn_gap
+                    }
+                )
             end
         end
     end
@@ -403,19 +535,25 @@ local function createQuickSettingsPanel(touch_menu)
     local max_btn_width = Screen:scaleBySize(50)
     local slider_gap = Screen:scaleBySize(4)
     local slider_width = inner_width - 2 * small_btn_width - max_btn_width - 3 * slider_gap
-    local section_span = VerticalSpan:new{ width = Screen:scaleBySize(8) }
+    local section_span =
+        VerticalSpan:new {
+        width = Screen:scaleBySize(8)
+    }
 
-    local fl_group = VerticalGroup:new{ align = "center" }
+    local fl_group =
+        VerticalGroup:new {
+        align = "center"
+    }
 
     if config.show_frontlight then
         -- Frontlight state
         local fl = {
             min = powerd.fl_min,
             max = powerd.fl_max,
-            cur = powerd:frontlightIntensity(),
+            cur = powerd:frontlightIntensity()
         }
         local fl_steps = fl.max - fl.min + 1
-        local fl_stride = math.ceil(fl_steps * (1/25))
+        local fl_stride = math.ceil(fl_steps * (1 / 25))
 
         -- Ticks for the progress bar
         local fl_ticks = {}
@@ -428,28 +566,32 @@ local function createQuickSettingsPanel(touch_menu)
             table.insert(fl_ticks, i * fl_stride)
         end
 
-        local fl_label = TextWidget:new{
+        local fl_label =
+            TextWidget:new {
             text = _("Frontlight") .. ": " .. tostring(fl.cur),
             face = medium_font,
-            max_width = inner_width,
+            max_width = inner_width
         }
 
         -- Create buttons first to measure height
-        local fl_minus = Button:new{
+        local fl_minus =
+            Button:new {
             text = "−",
             width = small_btn_width,
             show_parent = touch_menu.show_parent,
-            callback = function() end, -- placeholder, set below
+            callback = function()
+            end -- placeholder, set below
         }
         local btn_height = fl_minus:getSize().h
 
-        local fl_progress = ProgressWidget:new{
+        local fl_progress =
+            ProgressWidget:new {
             width = slider_width,
             height = btn_height,
             percentage = fl.cur / fl.max,
             ticks = fl_ticks,
             tick_width = Screen:scaleBySize(0.5),
-            last = fl.max,
+            last = fl.max
         }
 
         local function updateBrightnessWidgets()
@@ -459,7 +601,9 @@ local function createQuickSettingsPanel(touch_menu)
         end
 
         local function setBrightness(intensity)
-            if intensity ~= fl.min and intensity == fl.cur then return end
+            if intensity ~= fl.min and intensity == fl.cur then
+                return
+            end
             intensity = math.max(fl.min, math.min(fl.max, intensity))
             powerd:setIntensity(intensity)
             fl.cur = powerd:frontlightIntensity()
@@ -467,30 +611,45 @@ local function createQuickSettingsPanel(touch_menu)
         end
 
         -- Now wire up the real callback
-        fl_minus.callback = function() setBrightness(fl.cur - 1) end
-        local fl_plus = Button:new{
+        fl_minus.callback = function()
+            setBrightness(fl.cur - 1)
+        end
+        local fl_plus =
+            Button:new {
             text = "＋",
             width = small_btn_width,
             show_parent = touch_menu.show_parent,
-            callback = function() setBrightness(fl.cur + 1) end,
+            callback = function()
+                setBrightness(fl.cur + 1)
+            end
         }
-        local fl_max_btn = Button:new{
+        local fl_max_btn =
+            Button:new {
             text = _("Max"),
             width = max_btn_width,
             show_parent = touch_menu.show_parent,
-            callback = function() setBrightness(fl.max) end,
+            callback = function()
+                setBrightness(fl.max)
+            end
         }
 
         -- Inline row: [−] [slider] [+] [Max]
-        local fl_row = HorizontalGroup:new{
+        local fl_row =
+            HorizontalGroup:new {
             align = "center",
             fl_minus,
-            HorizontalSpan:new{ width = slider_gap },
+            HorizontalSpan:new {
+                width = slider_gap
+            },
             fl_progress,
-            HorizontalSpan:new{ width = slider_gap },
+            HorizontalSpan:new {
+                width = slider_gap
+            },
             fl_plus,
-            HorizontalSpan:new{ width = slider_gap },
-            fl_max_btn,
+            HorizontalSpan:new {
+                width = slider_gap
+            },
+            fl_max_btn
         }
 
         -- Store progress ref for tap/pan handling
@@ -505,23 +664,40 @@ local function createQuickSettingsPanel(touch_menu)
 
     -- ----- Warmth section (conditional) -----
 
-    local warmth_group = VerticalGroup:new{ align = "center" }
+    local warmth_group =
+        VerticalGroup:new {
+        align = "center"
+    }
     if config.show_warmth and Device:hasNaturalLight() then
         local btn_height_warmth
         if not config.show_frontlight then
-            local tmp = Button:new{ text = "−", width = small_btn_width, show_parent = touch_menu.show_parent, callback = function() end }
+            local tmp =
+                Button:new {
+                text = "−",
+                width = small_btn_width,
+                show_parent = touch_menu.show_parent,
+                callback = function()
+                end
+            }
             btn_height_warmth = tmp:getSize().h
         else
-            btn_height_warmth = Button:new{ text = "−", width = small_btn_width, show_parent = touch_menu.show_parent, callback = function() end }:getSize().h
+            btn_height_warmth =
+                Button:new {
+                text = "−",
+                width = small_btn_width,
+                show_parent = touch_menu.show_parent,
+                callback = function()
+                end
+            }:getSize().h
         end
 
         local nl = {
             min = powerd.fl_warmth_min,
             max = powerd.fl_warmth_max,
-            cur = powerd:toNativeWarmth(powerd:frontlightWarmth()),
+            cur = powerd:toNativeWarmth(powerd:frontlightWarmth())
         }
         local nl_steps = nl.max - nl.min + 1
-        local nl_stride = math.ceil(nl_steps * (1/25))
+        local nl_stride = math.ceil(nl_steps * (1 / 25))
         local nl_num_buttons = math.ceil(nl_steps / nl_stride)
         if (nl_num_buttons - 1) * nl_stride < nl.max - nl.min then
             nl_num_buttons = nl_num_buttons + 1
@@ -530,13 +706,15 @@ local function createQuickSettingsPanel(touch_menu)
 
         local warmth_slider_width = inner_width - 2 * small_btn_width - max_btn_width - 3 * slider_gap
 
-        local nl_label = TextWidget:new{
+        local nl_label =
+            TextWidget:new {
             text = _("Warmth") .. ": " .. tostring(nl.cur),
             face = medium_font,
-            max_width = inner_width,
+            max_width = inner_width
         }
 
-        local nl_progress = ButtonProgressWidget:new{
+        local nl_progress =
+            ButtonProgressWidget:new {
             width = warmth_slider_width,
             height = btn_height_warmth,
             font_size = 20,
@@ -554,11 +732,13 @@ local function createQuickSettingsPanel(touch_menu)
                 UIManager:setDirty(touch_menu.show_parent, "ui")
             end,
             show_parent = touch_menu.show_parent,
-            enabled = true,
+            enabled = true
         }
 
         local function setWarmth(warmth)
-            if warmth == nl.cur then return end
+            if warmth == nl.cur then
+                return
+            end
             warmth = math.max(nl.min, math.min(nl.max, warmth))
             powerd:setWarmth(powerd:fromNativeWarmth(warmth))
             nl.cur = powerd:toNativeWarmth(powerd:frontlightWarmth())
@@ -567,38 +747,59 @@ local function createQuickSettingsPanel(touch_menu)
             UIManager:setDirty(touch_menu.show_parent, "ui")
         end
 
-        local nl_minus = Button:new{
+        local nl_minus =
+            Button:new {
             text = "−",
             width = small_btn_width,
             show_parent = touch_menu.show_parent,
-            callback = function() setWarmth(nl.cur - 1) end,
+            callback = function()
+                setWarmth(nl.cur - 1)
+            end
         }
-        local nl_plus = Button:new{
+        local nl_plus =
+            Button:new {
             text = "＋",
             width = small_btn_width,
             show_parent = touch_menu.show_parent,
-            callback = function() setWarmth(nl.cur + 1) end,
+            callback = function()
+                setWarmth(nl.cur + 1)
+            end
         }
-        local nl_max_btn = Button:new{
+        local nl_max_btn =
+            Button:new {
             text = _("Max"),
             width = max_btn_width,
             show_parent = touch_menu.show_parent,
-            callback = function() setWarmth(nl.max) end,
+            callback = function()
+                setWarmth(nl.max)
+            end
         }
 
         -- Inline row: [−] [slider] [+] [Max]
-        local nl_row = HorizontalGroup:new{
+        local nl_row =
+            HorizontalGroup:new {
             align = "center",
             nl_minus,
-            HorizontalSpan:new{ width = slider_gap },
+            HorizontalSpan:new {
+                width = slider_gap
+            },
             nl_progress,
-            HorizontalSpan:new{ width = slider_gap },
+            HorizontalSpan:new {
+                width = slider_gap
+            },
             nl_plus,
-            HorizontalSpan:new{ width = slider_gap },
-            nl_max_btn,
+            HorizontalSpan:new {
+                width = slider_gap
+            },
+            nl_max_btn
         }
 
-        table.insert(warmth_group, VerticalSpan:new{ width = Screen:scaleBySize(14) })
+        table.insert(
+            warmth_group,
+            VerticalSpan:new {
+                width = Screen:scaleBySize(14)
+            }
+        )
         table.insert(warmth_group, nl_label)
         table.insert(warmth_group, section_span)
         table.insert(warmth_group, nl_row)
@@ -606,17 +807,31 @@ local function createQuickSettingsPanel(touch_menu)
 
     -- ----- Assemble panel -----
 
-    local panel = VerticalGroup:new{
+    local panel =
+        VerticalGroup:new {
         align = "center",
-        VerticalSpan:new{ width = Screen:scaleBySize(12) },
+        VerticalSpan:new {
+            width = Screen:scaleBySize(12)
+        }
     }
 
     if num_buttons > 0 then
-        table.insert(panel, CenterContainer:new{
-            dimen = Geom:new{ w = panel_width, h = top_row:getSize().h },
-            top_row,
-        })
-        table.insert(panel, VerticalSpan:new{ width = Screen:scaleBySize(8) })
+        table.insert(
+            panel,
+            CenterContainer:new {
+                dimen = Geom:new {
+                    w = panel_width,
+                    h = top_row:getSize().h
+                },
+                top_row
+            }
+        )
+        table.insert(
+            panel,
+            VerticalSpan:new {
+                width = Screen:scaleBySize(8)
+            }
+        )
     end
 
     if #fl_group > 0 then
@@ -625,7 +840,12 @@ local function createQuickSettingsPanel(touch_menu)
     if #warmth_group > 0 then
         table.insert(panel, warmth_group)
     end
-    table.insert(panel, VerticalSpan:new{ width = Screen:scaleBySize(8) })
+    table.insert(
+        panel,
+        VerticalSpan:new {
+            width = Screen:scaleBySize(8)
+        }
+    )
 
     -- Store refs on the touch_menu for gesture handlers
     touch_menu._qs_refs = refs
@@ -639,11 +859,12 @@ end
 
 local function handlePanelGesture(touch_menu, ges)
     local refs = touch_menu._qs_refs
-    if not refs then return false end
+    if not refs then
+        return false
+    end
 
     -- Check frontlight progress bar (ProgressWidget doesn't handle its own taps)
-    if refs.fl_progress and refs.fl_progress.dimen
-       and ges.pos:intersectWith(refs.fl_progress.dimen) then
+    if refs.fl_progress and refs.fl_progress.dimen and ges.pos:intersectWith(refs.fl_progress.dimen) then
         local perc = refs.fl_progress:getPercentageFromPosition(ges.pos)
         if perc and refs.setBrightness then
             local fl = refs.fl_state
@@ -706,7 +927,8 @@ function TouchMenu:updateItems(target_page, target_item_id)
     if Device:hasBattery() then
         local batt_lvl = powerd:getCapacity()
         local batt_symbol = powerd:getBatterySymbol(powerd:isCharged(), powerd:isCharging(), batt_lvl)
-        time_info_txt = BD.wrap(time_info_txt) .. " " .. BD.wrap("⌁") .. BD.wrap(batt_symbol) ..  BD.wrap(batt_lvl .. "%")
+        time_info_txt =
+            BD.wrap(time_info_txt) .. " " .. BD.wrap("⌁") .. BD.wrap(batt_symbol) .. BD.wrap(batt_lvl .. "%")
     end
     self.time_info:setText(time_info_txt)
 
@@ -717,15 +939,18 @@ function TouchMenu:updateItems(target_page, target_item_id)
     self:moveFocusTo(self.cur_tab, 1, FocusManager.NOT_FOCUS)
 
     local keep_bg = old_dimen and self.dimen.h >= old_dimen.h
-    UIManager:setDirty((self.is_fresh or keep_bg) and self.show_parent or "all", function()
-        local refresh_dimen = old_dimen and old_dimen:combine(self.dimen) or self.dimen
-        local refresh_type = "ui"
-        if self.is_fresh then
-            refresh_type = "flashui"
-            self.is_fresh = false
+    UIManager:setDirty(
+        (self.is_fresh or keep_bg) and self.show_parent or "all",
+        function()
+            local refresh_dimen = old_dimen and old_dimen:combine(self.dimen) or self.dimen
+            local refresh_type = "ui"
+            if self.is_fresh then
+                refresh_type = "flashui"
+                self.is_fresh = false
+            end
+            return refresh_type, refresh_dimen
         end
-        return refresh_type, refresh_dimen
-    end)
+    )
 end
 
 -- Hook onTapCloseAllMenus to intercept taps on panel widgets
@@ -772,7 +997,7 @@ end
 local quick_settings_tab = {
     icon = "quicksettings",
     remember = false,
-    panel = createQuickSettingsPanel,
+    panel = createQuickSettingsPanel
 }
 
 -- ============================================================
@@ -780,82 +1005,104 @@ local quick_settings_tab = {
 -- ============================================================
 
 local function buildSettingsMenu()
+    local button_display_names = getButtonDisplayNames()
+
     -- Button toggle sub-items
     local button_toggle_items = {}
     for _, id in ipairs(config_default.button_order) do
-        table.insert(button_toggle_items, {
-            text = button_display_names[id],
-            checked_func = function() return config.show_buttons[id] end,
-            callback = function()
-                config.show_buttons[id] = not config.show_buttons[id]
-                saveConfig()
-            end,
-        })
+        table.insert(
+            button_toggle_items,
+            {
+                text = button_display_names[id],
+                checked_func = function()
+                    return config.show_buttons[id]
+                end,
+                callback = function()
+                    config.show_buttons[id] = not config.show_buttons[id]
+                    saveConfig()
+                end
+            }
+        )
     end
 
     -- Arrange buttons item
-    table.insert(button_toggle_items, 1, {
-        text = _("Arrange buttons"),
-        keep_menu_open = true,
-        separator = true,
-        callback = function()
-            local SortWidget = require("ui/widget/sortwidget")
-            local sort_items = {}
-            for _, id in ipairs(config.button_order) do
-                if button_defs[id] then
-                    table.insert(sort_items, {
-                        text = button_display_names[id],
-                        orig_item = id,
-                        dim = not config.show_buttons[id],
-                    })
-                end
-            end
-            UIManager:show(SortWidget:new{
-                title = _("Arrange quick settings buttons"),
-                item_table = sort_items,
-                callback = function()
-                    for i, item in ipairs(sort_items) do
-                        config.button_order[i] = item.orig_item
+    table.insert(
+        button_toggle_items,
+        1,
+        {
+            text = _("Arrange buttons"),
+            keep_menu_open = true,
+            separator = true,
+            callback = function()
+                local SortWidget = require("ui/widget/sortwidget")
+                local sort_items = {}
+                for _, id in ipairs(config.button_order) do
+                    if button_defs[id] then
+                        table.insert(
+                            sort_items,
+                            {
+                                text = button_display_names[id],
+                                orig_item = id,
+                                dim = not config.show_buttons[id]
+                            }
+                        )
                     end
-                    saveConfig()
-                end,
-            })
-        end,
-    })
+                end
+                UIManager:show(
+                    SortWidget:new {
+                        title = _("Arrange quick settings buttons"),
+                        item_table = sort_items,
+                        callback = function()
+                            for i, item in ipairs(sort_items) do
+                                config.button_order[i] = item.orig_item
+                            end
+                            saveConfig()
+                        end
+                    }
+                )
+            end
+        }
+    )
 
     return {
         text = _("Quick settings"),
         sub_item_table = {
             {
                 text = _("Buttons"),
-                sub_item_table = button_toggle_items,
+                sub_item_table = button_toggle_items
             },
             {
                 text = _("Show frontlight slider"),
-                checked_func = function() return config.show_frontlight end,
+                checked_func = function()
+                    return config.show_frontlight
+                end,
                 callback = function()
                     config.show_frontlight = not config.show_frontlight
                     saveConfig()
-                end,
+                end
             },
             {
                 text = _("Show warmth slider"),
-                checked_func = function() return config.show_warmth end,
+                checked_func = function()
+                    return config.show_warmth
+                end,
                 callback = function()
                     config.show_warmth = not config.show_warmth
                     saveConfig()
                 end,
-                separator = true,
+                separator = true
             },
             {
                 text = _("Always open on this tab"),
-                checked_func = function() return config.open_on_start end,
+                checked_func = function()
+                    return config.open_on_start
+                end,
                 callback = function()
                     config.open_on_start = not config.open_on_start
                     saveConfig()
-                end,
-            },
-        },
+                end
+            }
+        }
     }
 end
 
