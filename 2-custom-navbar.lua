@@ -883,15 +883,16 @@ local standalone_view_names = {
 local standalone_nexttick_tab_ids = {
     library_view = "manga"
 }
+local _skip_standalone_navbar = false
+local _expect_coll_list_navbar = false -- nova flag
+
 local function isStandaloneNavbarView(menu)
     if standalone_view_names[menu.name] then
         return true
     end
-    -- Collections list tem name nil mas tem essas flags.
-    -- A guarda do FileManager.instance evita falsos positivos
-    -- no reader (fulltext search, Calibre metadata, etc.)
+    -- Só aceita menu sem nome se estiver DENTRO de onShowCollList (browse mode)
     if
-        FileManager.instance and not menu.name and menu.covers_fullscreen and menu.is_borderless and
+        _expect_coll_list_navbar and not menu.name and menu.covers_fullscreen and menu.is_borderless and
             menu.title_bar_fm_style
      then
         return true
@@ -1278,9 +1279,12 @@ local orig_onShowCollList = FileManagerCollection.onShowCollList
 function FileManagerCollection:onShowCollList(file_or_selected_collections, caller_callback, no_dialog)
     if file_or_selected_collections ~= nil then
         _skip_standalone_navbar = true
+    else
+        _expect_coll_list_navbar = true -- sinaliza que o próximo Menu:init sem nome é o coll_list
     end
     local result = orig_onShowCollList(self, file_or_selected_collections, caller_callback, no_dialog)
     _skip_standalone_navbar = false
+    _expect_coll_list_navbar = false -- limpa após o init ter rodado
     if config.show_in_standalone and self.coll_list and file_or_selected_collections == nil then
         injectStandaloneNavbar(self.coll_list, "collections")
     end
