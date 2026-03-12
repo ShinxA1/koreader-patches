@@ -849,6 +849,15 @@ function FileManager:setupLayout()
             end
         end
     )
+    -- Periodic refresh for time/battery/disk
+    local function autoRefresh()
+        if FileManager.instance ~= fm then
+            return
+        end
+        fm:_updateStatusBar()
+        UIManager:scheduleIn(60, autoRefresh)
+    end
+    UIManager:scheduleIn(60, autoRefresh)
 end
 
 local orig_onPathChanged = FileManager.onPathChanged
