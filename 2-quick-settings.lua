@@ -45,6 +45,7 @@ local PATCH_L10N = {
         ["Night mode"] = "Night mode",
         ["Rotate"] = "Rotate",
         ["USB"] = "USB",
+        ["SSH"] = "SSH",
         ["Sleep"] = "Sleep",
         ["File search"] = "File search",
         ["QuickRSS"] = "QuickRSS",
@@ -78,7 +79,8 @@ local PATCH_L10N = {
         ["Wi-Fi"] = "Wi-Fi",
         ["Night mode"] = "Modo noturno",
         ["Rotate"] = "Girar",
-        ["USB"] = "SSH",
+        ["USB"] = "USB",
+        ["SSH"] = "SSH",
         ["Sleep"] = "Suspender",
         ["File search"] = "Buscar arquivo",
         ["QuickRSS"] = "QuickRSS",
@@ -128,6 +130,7 @@ local config_default = {
         "night",
         "rotate",
         "usb",
+        "ssh",
         "search",
         "quickrss",
         "cloud",
@@ -141,7 +144,8 @@ local config_default = {
         wifi = true,
         night = true,
         rotate = true,
-        usb = true,
+        usb = false,
+        ssh = true,
         search = false,
         quickrss = false,
         cloud = false,
@@ -256,6 +260,15 @@ local button_defs = {
     },
     usb = {
         icon = "quick_usb",
+        label = _("USB"),
+        callback = function()
+            if Device:canToggleMassStorage() then
+                UIManager:broadcastEvent(Event:new("RequestUSBMS"))
+            end
+        end
+    },
+    ssh = {
+        icon = "quick_ssh",
         label = _("SSH"),
         active_func = function()
             local util = require("util")
@@ -358,31 +371,21 @@ local button_defs = {
         icon = "quick_calibre",
         label = _("Calibre"),
         active_func = function()
-            local ok, CalibreWireless = pcall(require, "calibre/wireless")
-            return ok and CalibreWireless and CalibreWireless.calibre_socket ~= nil
+            local CW = package.loaded["wireless"]
+            return CW ~= nil and CW.calibre_socket ~= nil
         end,
         callback = function(touch_menu)
-            local ok, CalibreWireless = pcall(require, "calibre/wireless")
-            if not ok or not CalibreWireless then
-                local InfoMessage = require("ui/widget/infomessage")
-                UIManager:show(
-                    InfoMessage:new {
-                        text = _("Calibre plugin is not available.")
-                    }
-                )
-                return
-            end
-            if not CalibreWireless.calibre_socket then
-                CalibreWireless:connect()
+            local CW = package.loaded["wireless"]
+            if CW and CW.calibre_socket ~= nil then
+                UIManager:broadcastEvent(Event:new("CloseWirelessConnection"))
             else
-                CalibreWireless:disconnect()
+                UIManager:broadcastEvent(Event:new("StartWirelessConnection"))
             end
+
             UIManager:scheduleIn(
                 1,
                 function()
-                    if touch_menu.item_table and touch_menu.item_table.panel then
-                        touch_menu:updateItems(1)
-                    end
+                    touch_menu:updateItems(1)
                 end
             )
         end
@@ -396,6 +399,7 @@ local function getButtonDisplayNames()
         night = _("Night mode"),
         rotate = _("Rotate"),
         usb = _("USB"),
+        ssh = _("SSH"),
         restart = _("Restart"),
         exit = _("Exit"),
         sleep = _("Sleep"),
