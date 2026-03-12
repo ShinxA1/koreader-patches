@@ -531,6 +531,40 @@ function FileManager:_updateStatusBar()
             button_y
         }
     end
+    -- Reset extended tap zone padding that causes oversized flash area
+    local function fixButtonFlash(btn)
+        if not btn then
+            return
+        end
+        btn.onTapIconButton = function(this)
+            if not this.callback then
+                return
+            end
+            if G_reader_settings:isFalse("flash_ui") or not this.allow_flash then
+                this.callback()
+            else
+                local img = this.image
+                local x = this.dimen.x + this.padding_left
+                local y = this.dimen.y + this.padding_top
+                local img_dimen = img:getSize()
+                img_dimen.x = x
+                img_dimen.y = y
+                img.invert = true
+                UIManager:widgetInvert(img, x, y)
+                UIManager:setDirty(nil, "fast", img_dimen)
+                UIManager:forceRePaint()
+                UIManager:yieldToEPDC()
+                img.invert = false
+                UIManager:widgetInvert(img, x, y)
+                this.callback()
+                UIManager:setDirty(nil, "fast", img_dimen)
+                UIManager:forceRePaint()
+            end
+            return true
+        end
+    end
+    fixButtonFlash(tb.left_button)
+    fixButtonFlash(tb.right_button)
 
     -- Hide subtitle or preserve height
     local VerticalSpan = require("ui/widget/verticalspan")
