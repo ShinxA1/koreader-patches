@@ -25,9 +25,106 @@ local Blitbuffer = require("ffi/blitbuffer")
 local LineWidget = require("ui/widget/linewidget")
 local Size = require("ui/size")
 local VerticalGroup = require("ui/widget/verticalgroup")
-local _ = require("gettext")
+local gettext = require("gettext")
 
--- === Persistent config ===
+-- ============================================================
+-- LOCALIZATION
+-- ============================================================
+
+local PATCH_L10N = {
+    en = {
+        -- Separator presets
+        ["Middle dot"] = "Middle dot",
+        ["Vertical bar"] = "Vertical bar",
+        ["Dash"] = "Dash",
+        ["Bullet"] = "Bullet",
+        ["Space only"] = "Space only",
+        ["No separator"] = "No separator",
+        ["Custom"] = "Custom",
+        -- Frontlight
+        ["Off"] = "Off",
+        -- Settings menu
+        ["Titlebar settings"] = "Titlebar settings",
+        ["Device name: "] = "Device name: ",
+        ["Device name"] = "Device name",
+        ["Cancel"] = "Cancel",
+        ["Set"] = "Set",
+        ["Show time"] = "Show time",
+        ["Show bottom border"] = "Show bottom border",
+        ["Bold text"] = "Bold text",
+        ["Show folder name"] = "Show folder name",
+        ["Colored status icons"] = "Colored status icons",
+        ["Items"] = "Items",
+        ["Arrange items"] = "Arrange items",
+        ["Arrange titlebar items"] = "Arrange titlebar items",
+        ["Separator: "] = "Separator: ",
+        ["Custom (long-press to edit)"] = "Custom (long-press to edit)",
+        ["Custom separator"] = "Custom separator",
+        -- Item labels
+        ["WiFi"] = "WiFi",
+        ["Disk space"] = "Disk space",
+        ["RAM usage"] = "RAM usage",
+        ["Frontlight"] = "Frontlight",
+        ["Battery"] = "Battery"
+    },
+    pt = {
+        -- Presets de separador
+        ["Middle dot"] = "Ponto central",
+        ["Vertical bar"] = "Barra vertical",
+        ["Dash"] = "Traço",
+        ["Bullet"] = "Marcador",
+        ["Space only"] = "Só espaço",
+        ["No separator"] = "Sem separador",
+        ["Custom"] = "Personalizado",
+        -- Luz frontal
+        ["Off"] = "Desligada",
+        -- Menu de configurações
+        ["Titlebar settings"] = "Configurações da barra de título",
+        ["Device name: "] = "Nome do dispositivo: ",
+        ["Device name"] = "Nome do dispositivo",
+        ["Cancel"] = "Cancelar",
+        ["Set"] = "Definir",
+        ["Show time"] = "Mostrar horário",
+        ["Show bottom border"] = "Mostrar borda inferior",
+        ["Bold text"] = "Texto em negrito",
+        ["Show folder name"] = "Mostrar nome da pasta",
+        ["Colored status icons"] = "Ícones coloridos",
+        ["Items"] = "Itens",
+        ["Arrange items"] = "Organizar itens",
+        ["Arrange titlebar items"] = "Organizar itens da barra",
+        ["Separator: "] = "Separador: ",
+        ["Custom (long-press to edit)"] = "Personalizado (pressione para editar)",
+        ["Custom separator"] = "Separador personalizado",
+        -- Rótulos dos itens
+        ["WiFi"] = "WiFi",
+        ["Disk space"] = "Espaço em disco",
+        ["RAM usage"] = "Uso de RAM",
+        ["Frontlight"] = "Luz frontal",
+        ["Battery"] = "Bateria"
+    }
+}
+
+local function l10nLookup(msg)
+    local lang = "en"
+    if G_reader_settings and G_reader_settings.readSetting then
+        lang = G_reader_settings:readSetting("language") or "en"
+    end
+    local lang_base = lang:match("^([a-z]+)") or lang
+    local map = PATCH_L10N[lang] or PATCH_L10N[lang_base] or PATCH_L10N.en or {}
+    return map[msg]
+end
+
+local function _(msg)
+    local custom = l10nLookup(msg)
+    if custom then
+        return custom
+    end
+    return gettext(msg)
+end
+
+-- ============================================================
+-- Persistent config
+-- ============================================================
 
 local separator_presets = {
     {
@@ -263,18 +360,15 @@ local function getDiskInfo()
     if cached_disk_text and (now - cached_disk_time) < 300 then
         return "\u{F0A0}", " " .. cached_disk_text, colors.disk
     end
-    local pipe = io.popen("df -h /mnt/onboard 2>/dev/null || df -h / 2>/dev/null")
-    if pipe then
-        local _ = pipe:read("*line") -- skip header
-        local line = pipe:read("*line")
-        pipe:close()
-        if line then
-            local avail = line:match("%S+%s+%S+%s+%S+%s+(%S+)")
-            if avail then
-                cached_disk_text = avail
-                cached_disk_time = now
-                return "\u{F0A0}", " " .. avail, colors.disk
-            end
+    local ok_util, util = pcall(require, "util")
+    if ok_util and util and type(util.diskUsage) == "function" then
+        local drive = Device.home_dir or "/"
+        local ok_df, usage = pcall(util.diskUsage, drive)
+        if ok_df and usage and type(usage.available) == "number" and usage.available > 0 then
+            local text = string.format("%.1fG", usage.available / 1024 / 1024 / 1024)
+            cached_disk_text = text
+            cached_disk_time = now
+            return "\u{F0A0}", " " .. text, colors.disk
         end
     end
     return "\u{F0A0}", " ?", colors.disk
@@ -288,7 +382,7 @@ local function getFrontlightInfo()
     if powerd:isFrontlightOn() then
         return "☼", string.format(" %d%%", powerd:frontlightIntensity()), colors.frontlight
     else
-        return "☼", " Off", colors.frontlight
+        return "☼", " " .. _("Off"), colors.frontlight
     end
 end
 
@@ -568,8 +662,15 @@ function FileManager:_updateStatusBar()
 
     -- Hide subtitle or preserve height
     local VerticalSpan = require("ui/widget/verticalspan")
-    if #title_group >= 4 and not config.show_subtitle then
-        title_group[4] = VerticalSpan:new {width = subtitle_h}
+    if #title_group >= 4 then
+        if not tb._orig_subtitle then
+            tb._orig_subtitle = title_group[4]
+        end
+        if config.show_subtitle then
+            title_group[4] = tb._orig_subtitle
+        else
+            title_group[4] = VerticalSpan:new {width = subtitle_h}
+        end
         title_group:resetLayout()
     end
 
@@ -782,9 +883,9 @@ function FileManagerMenu:setUpdateItemTable()
             {
                 text_func = function()
                     local sep_label = "?"
-                    for _, p in ipairs(separator_presets) do
+                    for _i, p in ipairs(separator_presets) do
                         if p.key == config.separator_key then
-                            sep_label = p.label
+                            sep_label = _(p.label)
                             break
                         end
                     end
@@ -797,7 +898,9 @@ function FileManagerMenu:setUpdateItemTable()
                             table.insert(
                                 items,
                                 {
-                                    text = preset.label .. "  '" .. preset.value .. "'",
+                                    text_func = function()
+                                        return _(preset.label) .. "  '" .. preset.value .. "'"
+                                    end,
                                     checked_func = function()
                                         return config.separator_key == preset.key
                                     end,
