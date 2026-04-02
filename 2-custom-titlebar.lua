@@ -85,6 +85,7 @@ local PATCH_L10N = {
         ["Cancel"] = "Cancelar",
         ["Set"] = "Definir",
         ["Show time"] = "Mostrar horário",
+        ["Left time"] = "Horário à esquerda",
         ["Show bottom border"] = "Mostrar borda inferior",
         ["Bold text"] = "Texto em negrito",
         ["Show folder name"] = "Mostrar nome da pasta",
@@ -186,7 +187,8 @@ local config_default = {
     show_bottom_border = true,
     colored = false,
     bold_text = false,
-    show_subtitle = false
+    show_subtitle = false,
+    time_on_left = false
 }
 
 local function loadConfig()
@@ -430,7 +432,7 @@ local item_labels = {
 local function createStatusRow()
     local left_text =
         TextWidget:new {
-        text = getDeviceName(),
+        text = (config.show_time and config.time_on_left) and os.date("%H:%M") or getDeviceName(),
         face = getBarFont()
     }
 
@@ -525,7 +527,7 @@ local function createStatusRow()
         }
     }
 
-    if config.show_time then
+    if config.show_time and not config.time_on_left then
         local time_text =
             TextWidget:new {
             text = os.date("%H:%M"),
@@ -666,6 +668,8 @@ function FileManager:_updateStatusBar()
         if not tb._orig_subtitle then
             tb._orig_subtitle = title_group[4]
         end
+        title_group[1] = VerticalSpan:new {width = math.max(0, orig.span1 - 8)}
+        title_group:resetLayout()
         if config.show_subtitle then
             title_group[4] = tb._orig_subtitle
         else
@@ -751,6 +755,16 @@ function FileManagerMenu:setUpdateItemTable()
                 end,
                 callback = function(touchmenu_instance)
                     config.show_time = not config.show_time
+                    refresh(touchmenu_instance)
+                end
+            },
+            {
+                text = _("Left time"),
+                checked_func = function()
+                    return config.time_on_left
+                end,
+                callback = function(touchmenu_instance)
+                    config.time_on_left = not config.time_on_left
                     refresh(touchmenu_instance)
                 end
             },
