@@ -21,11 +21,6 @@ local VerticalSpan = require("ui/widget/verticalspan")
 local Screen = Device.screen
 local gettext = require("gettext")
 local lfs = require("libs/libkoreader-lfs")
-local BottomContainer = require("ui/widget/container/bottomcontainer")
-local FrameContainer = require("ui/widget/container/framecontainer")
-local LeftContainer = require("ui/widget/container/leftcontainer")
-local OverlapGroup = require("ui/widget/overlapgroup")
-local RightContainer = require("ui/widget/container/rightcontainer")
 
 -- ============================================================
 -- LOCALIZATION
@@ -557,9 +552,7 @@ function ColorIconWidget:paintTo(bb, x, y)
         self.dimen.x = x
         self.dimen.y = y
     end
-    self._bb:invert()
     bb:colorblitFromRGB32(self._bb, x, y, self._offset_x, self._offset_y, size.w, size.h, self._tint_color)
-    self._bb:invert()
 end
 
 -- ============================================================
@@ -591,7 +584,7 @@ local function createTabWidget(tab, tab_w, is_active)
     else
         icon =
             IconWidget:new {
-            icon = tab.icon,
+            icon = styled and (tab.icon .. "_active") or tab.icon,
             width = navbar_icon_size,
             height = navbar_icon_size
         }
@@ -887,10 +880,15 @@ local _skip_standalone_navbar = false
 local _expect_coll_list_navbar = false -- nova flag
 
 local function isStandaloneNavbarView(menu)
+    -- Nunca injetar em contexto do Reader
+    local ReaderUI = require("apps/reader/readerui")
+    if ReaderUI.instance then
+        return false
+    end
+
     if standalone_view_names[menu.name] then
         return true
     end
-    -- Só aceita menu sem nome se estiver DENTRO de onShowCollList (browse mode)
     if
         _expect_coll_list_navbar and not menu.name and menu.covers_fullscreen and menu.is_borderless and
             menu.title_bar_fm_style
@@ -901,133 +899,6 @@ local function isStandaloneNavbarView(menu)
 end
 
 local _skip_standalone_navbar = false
-local function setupSplitFooter(menu)
-    if not menu.page_info_text or not menu.inner_dimen or not menu.content_group or not menu.page_info_first_chev then
-        return
-    end
-
-    local screen_w = Screen:getWidth()
-
-    menu.page_info =
-        HorizontalGroup:new {
-        menu.page_info_first_chev,
-        menu.page_info_left_chev,
-        menu.page_info_text,
-        menu.page_info_right_chev,
-        menu.page_info_last_chev
-    }
-
-    local page_controls =
-        BottomContainer:new {
-        dimen = menu.inner_dimen:copy(),
-        RightContainer:new {
-            dimen = Geom:new {
-                w = screen_w * 0.98,
-                h = menu.page_info:getSize().h
-            },
-            menu.page_info
-        }
-    }
-
-    menu.cur_folder_text =
-        TextWidget:new {
-        text = "",
-        face = Font:getFace("smallinfofont", 20),
-        max_width = screen_w * 0.94 - menu.page_info:getSize().w,
-        truncate_with_ellipsis = true,
-        truncate_left = true
-    }
-    local current_folder =
-        BottomContainer:new {
-        dimen = menu.inner_dimen:copy(),
-        LeftContainer:new {
-            dimen = Geom:new {
-                w = screen_w * 0.94,
-                h = menu.page_info:getSize().h
-            },
-            menu.cur_folder_text
-        }
-    }
-
-    local page_return
-    if menu.return_button and menu.page_return_arrow then
-        page_return =
-            BottomContainer:new {
-            dimen = menu.inner_dimen:copy(),
-            LeftContainer:new {
-                dimen = Geom:new {
-                    w = screen_w * 0.94,
-                    h = menu.page_return_arrow:getSize().h
-                },
-                menu.return_button
-            }
-        }
-    end
-
-    local footer_line =
-        BottomContainer:new {
-        dimen = Geom:new {
-            w = menu.inner_dimen.w,
-            h = menu.inner_dimen.h - menu.page_info:getSize().h
-        },
-        LineWidget:new {
-            dimen = Geom:new {
-                w = menu.inner_dimen.w,
-                h = Size.line.medium
-            },
-            background = Blitbuffer.COLOR_LIGHT_GRAY
-        }
-    }
-
-    local overlap =
-        OverlapGroup:new {
-        allow_mirroring = false,
-        dimen = menu.inner_dimen:copy(),
-        menu.content_group,
-        current_folder,
-        page_controls
-    }
-    if page_return then
-        table.insert(overlap, 3, page_return)
-    end
-
-    menu[1] =
-        FrameContainer:new {
-        background = Blitbuffer.COLOR_WHITE,
-        padding = 0,
-        margin = 0,
-        bordersize = 0,
-        overlap
-    }
-
-    if type(menu.path) == "string" and menu.path ~= "" then
-        local home_dir = G_reader_settings:readSetting("home_dir")
-        local label = (menu.path == home_dir) and _("Home") or (menu.path:match("([^/]+)$") or "/")
-        menu.cur_folder_text:setText(label)
-    end
-end
-
-local orig_menu_updatePageInfo = Menu.updatePageInfo
-
-function Menu:updatePageInfo(select_number)
-    orig_menu_updatePageInfo(self, select_number)
-
-    if not self.cur_folder_text then
-        return
-    end
-
-    if self.page_info_text and self.page_info_text.text and self.page_info_text.text ~= "" then
-        local trimmed = string.match(self.page_info_text.text, "(%d+%D+%d+)") or ""
-        self.page_info_text:setText(trimmed)
-    end
-
-    if type(self.path) == "string" and self.path ~= "" then
-        local home_dir = G_reader_settings:readSetting("home_dir")
-        local label = (self.path == home_dir) and _("Home") or (self.path:match("([^/]+)$") or "/")
-        self.cur_folder_text:setMaxWidth(Screen:getWidth() * 0.94 - self.page_info:getSize().w)
-        self.cur_folder_text:setText(label)
-    end
-end
 
 local orig_menu_init = Menu.init
 
@@ -1041,9 +912,7 @@ function Menu:init()
         end
     end
     orig_menu_init(self)
-    if self.name == "filemanager" then
-        setupSplitFooter(self)
-    end
+
     local nexttick_tab_id = standalone_nexttick_tab_ids[self.name]
     if nexttick_tab_id and config.show_in_standalone then
         local menu = self
@@ -1132,8 +1001,20 @@ injectNavbar = function(fm)
         file_chooser.dimen.h = new_height
         file_chooser.inner_dimen.h = new_height - chrome
         file_chooser:updateItems()
-        -- Reconstrói o footer com o inner_dimen atualizado
-        setupSplitFooter(file_chooser)
+
+        -- Sincroniza dimen do footer (OverlapGroup e seus filhos BottomContainer)
+        -- com o novo inner_dimen após mudança de altura da navbar
+        local frame = file_chooser[1]
+        local overlap = frame and frame[1]
+        if overlap and overlap.dimen then
+            local new_h = file_chooser.inner_dimen.h
+            overlap.dimen.h = new_h
+            for i = 1, #overlap do
+                if overlap[i] and overlap[i].dimen then
+                    overlap[i].dimen.h = new_h
+                end
+            end
+        end
     end
 
     fm_ui[1] =
@@ -1235,13 +1116,14 @@ local orig_setupLayout = FileManager.setupLayout
 
 function FileManager:setupLayout()
     orig_setupLayout(self)
-
     self._navbar_injected = false
+
+    injectNavbar(self) -- injeção imediata evita o flash
 
     local fm = self
     UIManager:nextTick(
         function()
-            injectNavbar(fm)
+            injectNavbar(fm) -- corrige altura após plugins terminarem
             UIManager:setDirty(fm, "ui")
         end
     )
